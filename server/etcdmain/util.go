@@ -28,7 +28,8 @@ func discoverEndpoints(lg *zap.Logger, dns string, ca string, insecure bool, ser
 	if dns == "" {
 		return s
 	}
-	srvs, err := srv.GetClient("etcd-client", dns, serviceName)
+	//dns: gatewayDNSCluster/grpcProxyDNSCluster -> domain; serviceName:gatewayDNSClusterServiceName/grpcProxyDNSClusterServiceName -> serviceName
+	srvs, err := srv.GetClient("etcd-client", dns, serviceName) //获取ip:port(封装在net.SRV结构体中）
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -38,7 +39,7 @@ func discoverEndpoints(lg *zap.Logger, dns string, ca string, insecure bool, ser
 	if lg != nil {
 		lg.Info(
 			"discovered cluster from SRV",
-			zap.String("srv-server", dns),
+			zap.String("srv-server", dns), //domain
 			zap.Strings("endpoints", endpoints),
 		)
 	}
@@ -60,6 +61,8 @@ func discoverEndpoints(lg *zap.Logger, dns string, ca string, insecure bool, ser
 		)
 	}
 
+	//校验tls信息是否有效，能否dail通
+	//这里会去掉一些不通的endpoint，再把通的结果返回给rsp里的s对象，没有直接返回srvs对象
 	endpoints, err = transport.ValidateSecureEndpoints(tlsInfo, endpoints)
 	if err != nil {
 		if lg != nil {

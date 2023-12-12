@@ -43,7 +43,7 @@ var DefaultZapLoggerConfig = zap.Config{
 		Thereafter: 100,
 	},
 
-	Encoding: DefaultLogFormat,
+	Encoding: DefaultLogFormat, //json格式日志
 
 	// copied from "zap.NewProductionEncoderConfig" with some updates
 	EncoderConfig: zapcore.EncoderConfig{
@@ -66,8 +66,8 @@ var DefaultZapLoggerConfig = zap.Config{
 	},
 
 	// Use "/dev/null" to discard all
-	OutputPaths:      []string{"stderr"},
-	ErrorOutputPaths: []string{"stderr"},
+	OutputPaths:      []string{"stderr"}, //输出到标准错误
+	ErrorOutputPaths: []string{"stderr"}, //输出到标准错误
 }
 
 // MergeOutputPaths merges logging output paths, resolving conflicts.

@@ -257,7 +257,7 @@ func identifyDataDirOrDie(lg *zap.Logger, dir string) dirType {
 }
 
 func checkSupportArch() {
-	lg, err := logutil.CreateDefaultZapLogger(zap.InfoLevel)
+	lg, err := logutil.CreateDefaultZapLogger(zap.InfoLevel) //创建info等级logger
 	if err != nil {
 		panic(err)
 	}
@@ -270,6 +270,7 @@ func checkSupportArch() {
 	// unsupported arch only configured via environment variable
 	// so unset here to not parse through flag
 	defer os.Unsetenv("ETCD_UNSUPPORTED_ARCH")
+	//这里表示用户设置了一个环境变量的话，虽然不支持，但是还是会继续跑，不会exit
 	if env, ok := os.LookupEnv("ETCD_UNSUPPORTED_ARCH"); ok && env == runtime.GOARCH {
 		lg.Info("running etcd on unsupported architecture since ETCD_UNSUPPORTED_ARCH is set", zap.String("arch", env))
 		return

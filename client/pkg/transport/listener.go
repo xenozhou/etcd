@@ -215,7 +215,7 @@ func SelfCert(lg *zap.Logger, dirpath string, hosts []string, selfSignedCertVali
 		)
 		return
 	}
-	err = fileutil.TouchDirAll(lg, dirpath)
+	err = fileutil.TouchDirAll(lg, dirpath) //os.MakeDirAll 0700权限位，确保writable
 	if err != nil {
 		if info.Logger != nil {
 			info.Logger.Warn(
@@ -284,6 +284,7 @@ func SelfCert(lg *zap.Logger, dirpath string, hosts []string, selfSignedCertVali
 		}
 	}
 
+	//生成公钥和密钥
 	priv, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	if err != nil {
 		if info.Logger != nil {

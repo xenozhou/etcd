@@ -27,6 +27,8 @@ import (
 	"go.etcd.io/etcd/server/v3/etcdmain"
 )
 
+// 时间的执行在etcd/etcdmain
+// 这里封装的main pkg只是为了go getable
 func main() {
 	etcdmain.Main(os.Args)
 }

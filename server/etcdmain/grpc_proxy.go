@@ -107,7 +107,7 @@ var (
 	maxConcurrentStreams uint32
 )
 
-const defaultGRPCMaxCallSendMsgSize = 1.5 * 1024 * 1024
+const defaultGRPCMaxCallSendMsgSize = 1.5 * 1024 * 1024 //一次请求最多1.5M
 
 func init() {
 	rootCmd.AddCommand(newGRPCProxyCommand())
@@ -131,19 +131,19 @@ func newGRPCProxyStartCommand() *cobra.Command {
 		Run:   startGRPCProxy,
 	}
 
-	cmd.Flags().StringVar(&grpcProxyListenAddr, "listen-addr", "127.0.0.1:23790", "listen address")
-	cmd.Flags().StringVar(&grpcProxyDNSCluster, "discovery-srv", "", "domain name to query for SRV records describing cluster endpoints")
-	cmd.Flags().StringVar(&grpcProxyDNSClusterServiceName, "discovery-srv-name", "", "service name to query when using DNS discovery")
-	cmd.Flags().StringVar(&grpcProxyMetricsListenAddr, "metrics-addr", "", "listen for endpoint /metrics requests on an additional interface")
-	cmd.Flags().BoolVar(&grpcProxyInsecureDiscovery, "insecure-discovery", false, "accept insecure SRV records")
-	cmd.Flags().StringSliceVar(&grpcProxyEndpoints, "endpoints", []string{"127.0.0.1:2379"}, "comma separated etcd cluster endpoints")
-	cmd.Flags().DurationVar(&grpcProxyEndpointsAutoSyncInterval, "endpoints-auto-sync-interval", 0, "etcd endpoints auto sync interval (disabled by default)")
-	cmd.Flags().StringVar(&grpcProxyAdvertiseClientURL, "advertise-client-url", "127.0.0.1:23790", "advertise address to register (must be reachable by client)")
+	cmd.Flags().StringVar(&grpcProxyListenAddr, "listen-addr", "127.0.0.1:23790", "listen address")                                                               //grpc_proxy 监听的地址，一般为23790端口
+	cmd.Flags().StringVar(&grpcProxyDNSCluster, "discovery-srv", "", "domain name to query for SRV records describing cluster endpoints")                         //DNS服务器domain
+	cmd.Flags().StringVar(&grpcProxyDNSClusterServiceName, "discovery-srv-name", "", "service name to query when using DNS discovery")                            //grpc-proxy在dns服务器上注册的svr-name
+	cmd.Flags().StringVar(&grpcProxyMetricsListenAddr, "metrics-addr", "", "listen for endpoint /metrics requests on an additional interface")                    //metrics监听端口
+	cmd.Flags().BoolVar(&grpcProxyInsecureDiscovery, "insecure-discovery", false, "accept insecure SRV records")                                                  //是否允许不安全的请求
+	cmd.Flags().StringSliceVar(&grpcProxyEndpoints, "endpoints", []string{"127.0.0.1:2379"}, "comma separated etcd cluster endpoints")                            // etcd server服务终端
+	cmd.Flags().DurationVar(&grpcProxyEndpointsAutoSyncInterval, "endpoints-auto-sync-interval", 0, "etcd endpoints auto sync interval (disabled by default)")    //同步时间间隔
+	cmd.Flags().StringVar(&grpcProxyAdvertiseClientURL, "advertise-client-url", "127.0.0.1:23790", "advertise address to register (must be reachable by client)") //todo::看不懂
 	cmd.Flags().StringVar(&grpcProxyResolverPrefix, "resolver-prefix", "", "prefix to use for registering proxy (must be shared with other grpc-proxy members)")
 	cmd.Flags().IntVar(&grpcProxyResolverTTL, "resolver-ttl", 0, "specify TTL, in seconds, when registering proxy endpoints")
 	cmd.Flags().StringVar(&grpcProxyNamespace, "namespace", "", "string to prefix to all keys for namespacing requests")
-	cmd.Flags().BoolVar(&grpcProxyEnablePprof, "enable-pprof", false, `Enable runtime profiling data via HTTP server. Address is at client URL + "/debug/pprof/"`)
-	cmd.Flags().StringVar(&grpcProxyDataDir, "data-dir", "default.proxy", "Data directory for persistent data")
+	cmd.Flags().BoolVar(&grpcProxyEnablePprof, "enable-pprof", false, `Enable runtime profiling data via HTTP server. Address is at client URL + "/debug/pprof/"`) //是否打开性能调试
+	cmd.Flags().StringVar(&grpcProxyDataDir, "data-dir", "default.proxy", "Data directory for persistent data")                                                    //持久化数据的目录
 	cmd.Flags().IntVar(&grpcMaxCallSendMsgSize, "max-send-bytes", defaultGRPCMaxCallSendMsgSize, "message send limits in bytes (default value is 1.5 MiB)")
 	cmd.Flags().IntVar(&grpcMaxCallRecvMsgSize, "max-recv-bytes", math.MaxInt32, "message receive limits in bytes (default value is math.MaxInt32)")
 	cmd.Flags().DurationVar(&grpcKeepAliveMinTime, "grpc-keepalive-min-time", embed.DefaultGRPCKeepAliveMinTime, "Minimum interval duration that a client should wait before pinging proxy.")
@@ -163,7 +163,7 @@ func newGRPCProxyStartCommand() *cobra.Command {
 	cmd.Flags().StringSliceVar(&grpcProxyListenCipherSuites, "listen-cipher-suites", grpcProxyListenCipherSuites, "Comma-separated list of supported TLS cipher suites between client/proxy (empty will be auto-populated by Go).")
 	cmd.Flags().BoolVar(&grpcProxyListenAutoTLS, "auto-tls", false, "proxy TLS using generated certificates")
 	cmd.Flags().StringVar(&grpcProxyListenCRL, "client-crl-file", "", "proxy client certificate revocation list file.")
-	cmd.Flags().UintVar(&selfSignedCertValidity, "self-signed-cert-validity", 1, "The validity period of the proxy certificates, unit is year")
+	cmd.Flags().UintVar(&selfSignedCertValidity, "self-signed-cert-validity", 1, "The validity period of the proxy certificates, unit is year") //认证有效期
 
 	// experimental flags
 	cmd.Flags().BoolVar(&grpcProxyEnableOrdering, "experimental-serializable-ordering", false, "Ensure serializable reads have monotonically increasing store revisions across endpoints.")
@@ -195,8 +195,10 @@ func startGRPCProxy(cmd *cobra.Command, args []string) {
 	// The proxy itself (ListenCert) can have not-empty CN.
 	// The empty CN is required for grpcProxyCert.
 	// Please see https://github.com/etcd-io/etcd/issues/11970#issuecomment-687875315  for more context.
+	//CN指common name，即通配符证书的公用名
 	tlsInfo := newTLS(grpcProxyListenCA, grpcProxyListenCert, grpcProxyListenKey, false)
 	if len(grpcProxyListenCipherSuites) > 0 {
+		//获取密码套件的id
 		cs, err := tlsutil.GetCipherSuites(grpcProxyListenCipherSuites)
 		if err != nil {
 			log.Fatal(err)
@@ -206,6 +208,7 @@ func startGRPCProxy(cmd *cobra.Command, args []string) {
 	if tlsInfo == nil && grpcProxyListenAutoTLS {
 		host := []string{"https://" + grpcProxyListenAddr}
 		dir := filepath.Join(grpcProxyDataDir, "fixtures", "proxy")
+		//如果没有已有的证书，则自己生成证书
 		autoTLS, err := transport.SelfCert(lg, dir, host, selfSignedCertValidity)
 		if err != nil {
 			log.Fatal(err)
@@ -216,7 +219,10 @@ func startGRPCProxy(cmd *cobra.Command, args []string) {
 	if tlsInfo != nil {
 		lg.Info("gRPC proxy server TLS", zap.String("tls-info", fmt.Sprintf("%+v", tlsInfo)))
 	}
+
+	//创建了一个cmux对象，cmux支持同一个端口监听不同类型的协议
 	m := mustListenCMux(lg, tlsInfo)
+	// cmuax.Match把这个协议的请求路由到某个固定的listener
 	grpcl := m.Match(cmux.HTTP2())
 	defer func() {
 		grpcl.Close()

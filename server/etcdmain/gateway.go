@@ -47,6 +47,7 @@ var (
 )
 
 func init() {
+	// etcd gateway start -f
 	rootCmd.AddCommand(newGatewayCommand())
 }
 
@@ -61,6 +62,7 @@ func newGatewayCommand() *cobra.Command {
 	return lpc
 }
 
+// 这里的end points主要是client的ip:port，gateway起到转发的作用（http,用于给不使用grpc的client充当代理）
 func newGatewayStartCommand() *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "start",
@@ -68,13 +70,13 @@ func newGatewayStartCommand() *cobra.Command {
 		Run:   startGateway,
 	}
 
-	cmd.Flags().StringVar(&gatewayListenAddr, "listen-addr", "127.0.0.1:23790", "listen address")
-	cmd.Flags().StringVar(&gatewayDNSCluster, "discovery-srv", "", "DNS domain used to bootstrap initial cluster")
-	cmd.Flags().StringVar(&gatewayDNSClusterServiceName, "discovery-srv-name", "", "service name to query when using DNS discovery")
-	cmd.Flags().BoolVar(&gatewayInsecureDiscovery, "insecure-discovery", false, "accept insecure SRV records")
+	cmd.Flags().StringVar(&gatewayListenAddr, "listen-addr", "127.0.0.1:23790", "listen address")                                    //网关监听地址
+	cmd.Flags().StringVar(&gatewayDNSCluster, "discovery-srv", "", "DNS domain used to bootstrap initial cluster")                   //dns域名，用来自启动初始化集群
+	cmd.Flags().StringVar(&gatewayDNSClusterServiceName, "discovery-srv-name", "", "service name to query when using DNS discovery") //使用DNS域名发现时使用的service Name
+	cmd.Flags().BoolVar(&gatewayInsecureDiscovery, "insecure-discovery", false, "accept insecure SRV records")                       //是否允许非TLS安全层的end points
 	cmd.Flags().StringVar(&gatewayCA, "trusted-ca-file", "", "path to the client server TLS CA file for verifying the discovered endpoints when discovery-srv is provided.")
 
-	cmd.Flags().StringSliceVar(&gatewayEndpoints, "endpoints", []string{"127.0.0.1:2379"}, "comma separated etcd cluster endpoints")
+	cmd.Flags().StringSliceVar(&gatewayEndpoints, "endpoints", []string{"127.0.0.1:2379"}, "comma separated etcd cluster endpoints") //etcd集群获取service失败后兜底的后端端口们
 
 	cmd.Flags().DurationVar(&gatewayRetryDelay, "retry-delay", time.Minute, "duration of delay before retrying failed endpoints")
 
@@ -99,6 +101,7 @@ func startGateway(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	//展示所有的参数，有些参数没在cobra里面注册
 	// We use os.Args to show all the arguments (not only passed-through Cobra).
 	lg.Info("Running: ", zap.Strings("args", os.Args))
 
@@ -109,6 +112,7 @@ func startGateway(cmd *cobra.Command, args []string) {
 	}
 	// Strip the schema from the endpoints because we start just a TCP proxy
 	srvs.Endpoints = stripSchema(srvs.Endpoints)
+	//这种情况只会发生在svrs.EndPoints为空的情况下，用了默认兜底的cmd 传参gatewayEndpoints
 	if len(srvs.SRVs) == 0 {
 		for _, ep := range srvs.Endpoints {
 			h, p, serr := net.SplitHostPort(ep)
@@ -140,7 +144,7 @@ func startGateway(cmd *cobra.Command, args []string) {
 
 	for _, srv := range srvs.SRVs {
 		var eaddrs []string
-		eaddrs, err = net.LookupHost(srv.Target)
+		eaddrs, err = net.LookupHost(srv.Target) //ip
 		if err != nil {
 			fmt.Println("failed to resolve endpoint host:", srv.Target)
 			os.Exit(1)
@@ -151,6 +155,7 @@ func startGateway(cmd *cobra.Command, args []string) {
 
 		for _, ea := range eaddrs {
 			if laddrsMap[ea] {
+				//dns的集群不能和gateway网关监听的地址一样
 				fmt.Printf("SRV or endpoint (%s:%d->%s:%d) should not resolve to the gateway listen addr (%s)\n", srv.Target, srv.Port, ea, srv.Port, gatewayListenAddr)
 				os.Exit(1)
 			}
@@ -169,6 +174,7 @@ func startGateway(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	//封装了tcp协议的listener
 	tp := tcpproxy.TCPProxy{
 		Logger:          lg,
 		Listener:        l,

@@ -34,13 +34,15 @@ const (
 // IsDirWriteable checks if dir is writable by writing and removing a file
 // to dir. It returns nil if dir is writable.
 func IsDirWriteable(dir string) error {
-	f, err := filepath.Abs(filepath.Join(dir, ".touch"))
+	f, err := filepath.Abs(filepath.Join(dir, ".touch")) //新建一个.touch的临时文件
 	if err != nil {
 		return err
 	}
+	//往临时文件f中写入一个空字符串，校验是否有读写权限
 	if err := os.WriteFile(f, []byte(""), PrivateFileMode); err != nil {
 		return err
 	}
+	//关掉临时文件
 	return os.Remove(f)
 }
 
@@ -51,7 +53,7 @@ func TouchDirAll(lg *zap.Logger, dir string) error {
 	// If path is already a directory, MkdirAll does nothing and returns nil, so,
 	// first check if dir exists with an expected permission mode.
 	if Exist(dir) {
-		err := CheckDirPermission(dir, PrivateDirMode)
+		err := CheckDirPermission(dir, PrivateDirMode) //检查权限，0700表示只有自己有读0400+写0200+执行0100 = 0700权限
 		if err != nil {
 			lg.Warn("check file permission", zap.Error(err))
 		}
